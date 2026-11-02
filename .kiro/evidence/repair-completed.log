@@ -1,0 +1,55 @@
+Warning: Kiro CLI is running as root. Tools and commands can create root-owned files or change permissions. Restart without sudo unless elevated access is intentional.
+Hide this warning: kiro-cli settings app.warnOnElevatedPrivileges false
+Let me inspect all current file states first before touching anything.
+[tool] Reading index.html:1, app.js:1, style.css:1, README.md:1
+[tool] status: Completed
+Good. I have a clear picture of what was done (HTML was fully updated) and what still needs fixing:
+
+- **app.js**: still uses old `openCurrent()` with `window.open` + marks read; references `$.btnOpen.disabled`; uses `Enter` not `Ctrl+Enter`; missing `btnNewQueue`; still writes `aria-valuenow` to the fill child; missing `progress-bar` DOM ref
+- **style.css**: has no `.ghost-emblem` CSS (HTML now uses it), no `.layout-grid`/`.col-main`/`.col-queue`, no `.hint-text`, no `.progress-stat-pending`, `.done-graphic`, contrast fixes
+- **README.md**: says 50 tests, has file:// option, false undo claim
+- **submission/description.md**: needs truthful workflow
+- **submission/kiro-process.md**: doesn't exist yet
+
+Let me fix all of these now:
+[tool] Creating app.js
+[tool] status: Completed
+Now rewrite `style.css` — add the CSS ghost emblem, layout grid, contrast fixes, and all missing classes the new HTML references:
+[tool] Creating style.css
+[tool] status: Completed
+Now fix the README — 48 tests, no file:// option, remove false undo claim:
+[tool] Creating README.md
+[tool] status: Completed
+Now fix `submission/description.md` with the truthful workflow description:
+[tool] Creating description.md
+[tool] status: Completed
+Now create `submission/kiro-process.md`:
+[tool] Creating kiro-process.md
+[tool] status: Completed
+Now run the tests to confirm nothing broke:
+[tool] Running: node --test tests/core.test.mjs 2>&1
+[tool] status: Completed
+**48 tests, 48 pass, 0 fail.** All repairs complete. Here's a summary of every fix:
+
+---
+
+**Fix 1 — Open link (HTML was done; app.js now matches)**
+The old `openCurrent()` + `window.open` is gone. `renderCurrentItem()` sets `$.btnOpen.href = item.url` on the real `<a>` element. Opening never marks read. The `O` shortcut calls `$.btnOpen.click()` on the anchor.
+
+**Fix 2 — `aria-valuenow` on the progressbar**
+Added `$.progressBar` reference pointing to `#progress-bar` (the `role="progressbar"` div). `renderProgress()` now calls `$.progressBar.setAttribute('aria-valuenow', ...)` — not the fill child.
+
+**Fix 3 — Ctrl/Cmd+Enter to submit**
+Textarea keydown handler now checks `e.ctrlKey || e.metaKey`. Plain Enter inserts a newline. Placeholder, `aria-label`, and hint text all updated.
+
+**Fix 4 — New queue instead of misleading export button**
+Done panel has `btn-new-queue`. `newQueue()` clears state, saves, re-renders to empty state, and focuses the textarea.
+
+**Fix 5 — Docs corrected**
+README: 48 tests, HTTP-only run instructions, no false undo claim, correct GitHub URL. `submission/description.md`: truthful workflow, no spec-first/hook/MCP/PBT claims.
+
+**Fix 6 — CSS ghost emblem + 2-column layout + contrast**
+`.ghost-emblem`/`.ghost-body`/`.ghost-eye` CSS replaces the emoji. `.layout-grid` gives two columns at ≥720 px (current card high on the left, queue sticky on the right). `--text-muted` lifted to `#9e8fb0`, `--text-secondary` to `#c8badc`.
+
+**Fix 7 — `submission/kiro-process.md`**
+Truthful chronology: initial scoped prompt → Kiro implements → Codex browser QA → Kiro repairs. No fabricated proofs, no credentials, no false claims.
