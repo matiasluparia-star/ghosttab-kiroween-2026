@@ -1,0 +1,4 @@
+# GhostTab product steering
+Keep one useful task: turn a list of unread links into a deliberate reading queue. Keep it buildless, dependency-free, local-first and suitable for iPhone. No account system, payments, AI runtime, external title-fetching or unrelated business features. English UI and submission materials. Haunted styling must support legibility and task progress.
+Use textContent for user content, HTTP(S)-only URL validation, noopener noreferrer on external links, resilient localStorage handling and reduced motion.
+No false claims: opening is not reading; processed progress includes skipped items. Exactly 48 tests currently exist. Browser QA is separate from pure-logic tests. Files were implemented before specs documented the result. Do not claim hooks, MCP, custom agents or property-based testing were used.
