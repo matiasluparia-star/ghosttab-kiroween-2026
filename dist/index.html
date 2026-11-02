@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="GhostTab — turn a pasted list of reading links into a focused one-at-a-time reading queue. No accounts, no tracking, all local." />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#1a1020" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="GhostTab" />
+  <meta property="og:description" content="A haunted reading queue for the links that never quite get read." />
+  <meta property="og:type" content="website" />
+
+  <title>GhostTab — Haunted Reading Queue</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- No external dependencies — pure buildless HTML + ES modules -->
+</head>
+<body>
+
+  <!-- Screen-reader live region for dynamic announcements -->
+  <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+  <div id="app">
+
+    <!-- ================================================================
+         Header — CSS ghost emblem (no emoji)
+         ================================================================ -->
+    <header>
+      <h1 class="site-title">
+        <!-- Pure CSS ghost rendered via the .ghost-emblem element -->
+        <span class="ghost-emblem" aria-hidden="true">
+          <span class="ghost-body">
+            <span class="ghost-eye ghost-eye--left"></span>
+            <span class="ghost-eye ghost-eye--right"></span>
+          </span>
+        </span>GhostTab
+      </h1>
+      <p class="site-tagline">A haunted queue for the links that never quite get read.</p>
+    </header>
+
+    <!-- ================================================================
+         Two-column layout wrapper (desktop: left=main, right=queue)
+         ================================================================ -->
+    <div class="layout-grid">
+
+      <!-- Left / main column -->
+      <div class="col-main">
+
+        <!-- ============================================================
+             Input panel — paste links
+             ============================================================ -->
+        <section id="input-panel" class="card" aria-label="Add reading links">
+          <h2 class="section-heading">Summon Links</h2>
+
+          <label for="links-textarea" class="sr-only">
+            Paste one http or https URL per line
+          </label>
+          <textarea
+            id="links-textarea"
+            placeholder="Paste one URL per line&#10;https://example.org&#10;https://developer.mozilla.org/…&#10;&#10;Ctrl+Enter (or Cmd+Enter) to add to queue"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Paste one URL per line. Ctrl+Enter or Cmd+Enter to add to queue."
+          ></textarea>
+
+          <div class="input-row" role="group" aria-label="Queue actions">
+            <button id="btn-load" class="btn btn-primary" type="button">
+              ✦ Add to queue
+            </button>
+            <button id="btn-demo" class="btn btn-secondary" type="button">
+              Load demo
+            </button>
+            <button id="btn-clear" class="btn btn-danger" type="button">
+              ✕ Clear queue
+            </button>
+          </div>
+
+          <p class="hint-text">
+            Only http:// and https:// links accepted · duplicates removed automatically ·
+            <kbd>Ctrl+Enter</kbd> to submit
+          </p>
+        </section>
+
+        <!-- ============================================================
+             Progress panel
+             ============================================================ -->
+        <section id="progress-panel" class="card hidden" aria-label="Reading progress">
+          <h2 class="section-heading">Progress</h2>
+
+          <div class="progress-stats" aria-hidden="true">
+            <span>
+              <span id="progress-read"    class="progress-stat-read">0 read</span>
+              ·
+              <span id="progress-skip"    class="progress-stat-skip">0 skipped</span>
+              ·
+              <span id="progress-pending" class="progress-stat-pending">0 pending</span>
+            </span>
+            <span id="progress-pct" class="progress-stat-pct">0%</span>
+          </div>
+
+          <!-- Fix 2: aria-valuenow lives on role=progressbar, not on the fill child -->
+          <div
+            id="progress-bar"
+            class="progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-label="Reading queue completion"
+          >
+            <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+          </div>
+        </section>
+
+        <!-- ============================================================
+             Current item panel
+             ============================================================ -->
+        <section id="current-panel" class="card hidden" aria-label="Current reading link">
+          <p class="current-label" aria-hidden="true">Now reading</p>
+
+          <p id="current-url" class="current-url" aria-live="polite" aria-label="Current URL"></p>
+
+          <div class="current-actions" role="group" aria-label="Item actions">
+            <!--
+              Fix 1: Real <a> element — href and target set by app.js via
+              anchor.href = item.url (safe: validated http/https only).
+              Opening does NOT mark read. Separate Mark read button preserved.
+              O shortcut clicks this anchor.
+            -->
+            <a
+              id="btn-open"
+              class="btn btn-primary"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open current link in new tab (keyboard: O)"
+              title="Open link (O)"
+            >
+              ↗ Open link
+            </a>
+
+            <button
+              id="btn-read"
+              class="btn btn-read"
+              type="button"
+              aria-label="Mark current link as read without opening (keyboard: R)"
+              title="Mark read (R)"
+            >
+              ✓ Mark read
+            </button>
+
+            <button
+              id="btn-skip"
+              class="btn btn-skip"
+              type="button"
+              aria-label="Skip current link (keyboard: S)"
+              title="Skip (S)"
+            >
+              ⏭ Skip
+            </button>
+          </div>
+
+          <!-- Fix 3: keyboard hint updated to Ctrl/Cmd+Enter -->
+          <p class="hint-text" style="margin-top:12px;">
+            Shortcuts (outside textarea):
+            <kbd>O</kbd> open link ·
+            <kbd>R</kbd> mark read ·
+            <kbd>S</kbd> skip
+          </p>
+        </section>
+
+        <!-- ============================================================
+             Done panel (all items processed)
+             Fix 4: Replace "Export remaining / start over" with "New queue"
+             ============================================================ -->
+        <section id="done-panel" class="card hidden" aria-live="polite">
+          <div class="done-graphic" aria-hidden="true"></div>
+          <h2 class="done-title">Queue Complete!</h2>
+          <p class="done-subtitle">Every haunted link has been laid to rest.</p>
+          <button id="btn-new-queue" class="btn btn-primary btn-full" type="button"
+            aria-label="Start a new queue — clears the queue and focuses the input">
+            ✦ New queue
+          </button>
+        </section>
+
+        <!-- ============================================================
+             Export panel
+             ============================================================ -->
+        <section id="export-panel" class="card hidden" aria-label="Export pending links">
+          <h2 class="section-heading">Export</h2>
+          <p class="hint-text" style="margin-bottom:8px;">
+            Copy pending links to clipboard — paste into notes or a new session.
+          </p>
+          <button id="btn-export" class="btn btn-secondary" type="button"
+            aria-label="Copy pending links to clipboard">
+            📋 Copy pending links
+          </button>
+          <label for="export-output" class="sr-only">Pending links output</label>
+          <textarea
+            id="export-output"
+            class="hidden"
+            readonly
+            aria-label="Pending links — select all and copy"
+            autocomplete="off"
+          ></textarea>
+        </section>
+
+      </div><!-- /.col-main -->
+
+      <!-- Right column — full queue list (stacks below main on mobile) -->
+      <div class="col-queue">
+        <section id="queue-panel" class="card hidden" aria-label="All links in queue">
+          <h2 class="section-heading">The Full Queue</h2>
+          <ul id="queue-list" class="queue-list" aria-label="Reading queue items">
+            <!-- Populated by app.js -->
+          </ul>
+        </section>
+      </div>
+
+    </div><!-- /.layout-grid -->
+
+    <!-- ================================================================
+         Footer
+         ================================================================ -->
+    <footer>
+      <p>GhostTab · Built for Kiroween 2026 · No accounts, no tracking, no server.</p>
+      <p style="margin-top:4px;">
+        All data stays in your browser's localStorage. Opening a link contacts that site's server.
+        <a href="https://github.com/matiasluparia-star/ghosttab-kiroween-2026"
+           style="color:var(--accent); text-decoration:none;"
+           rel="noopener noreferrer"
+           target="_blank">Source on GitHub</a>
+      </p>
+    </footer>
+
+  </div><!-- /#app -->
+
+  <!-- Toast notification -->
+  <div id="notification" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- App module (type=module requires HTTP — open via a local server, not file://) -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
